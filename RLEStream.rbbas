@@ -43,10 +43,14 @@ Implements Readable,Writeable
 	#tag Method, Flags = &h0
 		Sub Flush()
 		  // Part of the Writeable interface.
+		  Dim c As String = RunChar
+		  If IsNumeric(c) Then
+		    c = "\" + c
+		  End If
 		  If Runcount > 1 Then
-		    IOStream.Write(Str(Runcount) + RunChar)
+		    IOStream.Write(Str(Runcount) + c)
 		  ElseIf RunChar <> "" Then
-		    IOStream.Write(RunChar)
+		    IOStream.Write(c)
 		  End If
 		  IOStream.Flush
 		End Sub
@@ -97,7 +101,7 @@ Implements Readable,Writeable
 		          If n <> "\" Then ' escape
 		            m = n
 		          Else ' literal \
-		            IOStream.Position = IOStream.Position - 1
+		            'IOStream.Position = IOStream.Position - 1
 		          End If
 		        End If
 		      End If
@@ -130,14 +134,22 @@ Implements Readable,Writeable
 		  Dim data As MemoryBlock = text
 		  Dim sz As Integer = Data.Size - 1
 		  If RunChar = "" Then RunChar = Data.StringValue(0, 1)
+		  'If IsNumeric(RunChar) Then RunChar = "\" + RunChar
 		  For i As Integer = 0 To sz
 		    Dim char As String = Data.StringValue(i, 1)
 		    If char <> RunChar Then
-		      If IsNumeric(char) Then char = "\" + char
 		      If Runcount > 1 Then
-		        IOStream.Write(Str(Runcount) + RunChar)
+		        If IsNumeric(RunChar) Then 
+		          IOStream.Write(Str(Runcount) + "\" + RunChar)
+		        Else
+		          IOStream.Write(Str(Runcount) + RunChar)
+		        End If
 		      Else
-		        IOStream.Write(RunChar)
+		        If IsNumeric(RunChar) Then
+		          IOStream.Write("\" + RunChar)
+		        Else
+		          IOStream.Write(RunChar)
+		        End If
 		      End If
 		      RunChar = char
 		      Runcount = 1
