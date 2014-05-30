@@ -3,6 +3,11 @@ Protected Class RLEStream
 Implements Readable,Writeable
 	#tag Method, Flags = &h0
 		Sub Close()
+		  Try
+		    Me.Flush
+		  Catch IOException
+		    ' read-only
+		  End Try
 		  IOStream.Close
 		  IOStream = Nil
 		End Sub
@@ -28,9 +33,31 @@ Implements Readable,Writeable
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		 Shared Function Decode(InData As MemoryBlock) As MemoryBlock
+		  Dim instream As New RLEStream(InData)
+		  Dim out As String
+		  While Not instream.EOF
+		    out = out + instream.Read(64)
+		  Wend
+		  instream.Close
+		  Return out
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub Destructor()
 		  If IOStream <> Nil Then IOStream.Close
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		 Shared Function Encode(InData As MemoryBlock) As MemoryBlock
+		  Dim out As New MemoryBlock(InData.Size)
+		  Dim outstream As New RLEStream(out)
+		  outstream.Write(InData)
+		  outstream.Close
+		  Return out
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -43,14 +70,16 @@ Implements Readable,Writeable
 	#tag Method, Flags = &h0
 		Sub Flush()
 		  // Part of the Writeable interface.
-		  Dim c As String = RunChar
-		  If IsNumeric(c) Then
-		    c = "\" + c
-		  End If
-		  If Runcount > 1 Then
-		    IOStream.Write(Str(Runcount) + c)
-		  ElseIf RunChar <> "" Then
-		    IOStream.Write(c)
+		  If NeedsFlush Then
+		    Dim c As String = RunChar
+		    If IsNumeric(c) Then
+		      c = "\" + c
+		    End If
+		    If Runcount > 1 Then
+		      IOStream.Write(Str(Runcount) + c)
+		    ElseIf RunChar <> "" Then
+		      IOStream.Write(c)
+		    End If
 		  End If
 		  IOStream.Flush
 		End Sub
@@ -80,6 +109,16 @@ Implements Readable,Writeable
 		  // Part of the Readable interface.
 		  If RawIO Then Return IOStream.Read(Count, encoding)
 		  Dim ret As String
+		  
+		  If Count > 1 Then
+		    #pragma BackgroundTasks Off
+		    For i As Integer = 1 To Count
+		      ret = ret + Me.Read(1, encoding)
+		    Next
+		    Return ret
+		  End If
+		  
+		  If encoding <> Nil Then ret = DefineEncoding(ret, encoding)
 		  Dim rcount As String
 		  While Not Me.EOF
 		    If Runcount >= Count Then
@@ -95,17 +134,12 @@ Implements Readable,Writeable
 		    Case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
 		      rcount = rcount + m
 		    Else
-		      If m = "\" Then
+		      If m = "\" Then 'escape
 		        If IOStream.Position < IOStream.Length Then
 		          Dim n As String = IOStream.Read(1)
-		          If n <> "\" Then ' escape
-		            m = n
-		          Else ' literal \
-		            'IOStream.Position = IOStream.Position - 1
-		          End If
+		          m = n
 		        End If
 		      End If
-		      
 		      If rcount.Trim = "" Then rcount = "1"
 		      Runcount = Val(rcount)
 		      RunChar = m
@@ -131,15 +165,24 @@ Implements Readable,Writeable
 		    IOStream.Write(text)
 		    Return
 		  End If
+		  
+		  If text.LenB > 1 Then
+		    #pragma BackgroundTasks Off
+		    For i As Integer = 1 To text.LenB
+		      Me.Write(MidB(text, i, 1))
+		    Next
+		    Return
+		  End If
+		  
 		  Dim data As MemoryBlock = text
 		  Dim sz As Integer = Data.Size - 1
 		  If RunChar = "" Then RunChar = Data.StringValue(0, 1)
 		  'If IsNumeric(RunChar) Then RunChar = "\" + RunChar
 		  For i As Integer = 0 To sz
 		    Dim char As String = Data.StringValue(i, 1)
-		    If char <> RunChar Then
+		    If StrComp(char, RunChar, 1) <> 0 Then
 		      If Runcount > 1 Then
-		        If IsNumeric(RunChar) Then 
+		        If IsNumeric(RunChar) Then
 		          IOStream.Write(Str(Runcount) + "\" + RunChar)
 		        Else
 		          IOStream.Write(Str(Runcount) + RunChar)
@@ -157,7 +200,7 @@ Implements Readable,Writeable
 		      Runcount = Runcount + 1
 		    End If
 		  Next
-		  
+		  NeedsFlush = True
 		End Sub
 	#tag EndMethod
 
@@ -171,6 +214,10 @@ Implements Readable,Writeable
 
 	#tag Property, Flags = &h1
 		Protected IOStream As BinaryStream
+	#tag EndProperty
+
+	#tag Property, Flags = &h1
+		Protected NeedsFlush As Boolean
 	#tag EndProperty
 
 	#tag Property, Flags = &h0

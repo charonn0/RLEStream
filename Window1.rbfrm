@@ -23,7 +23,7 @@ Begin Window Window1
    Resizeable      =   True
    Title           =   "RLE Test"
    Visible         =   True
-   Width           =   6.0e+2
+   Width           =   3.46e+2
    Begin TextArea TextArea1
       AcceptTabs      =   ""
       Alignment       =   0
@@ -69,57 +69,12 @@ Begin Window Window1
       Visible         =   True
       Width           =   258
    End
-   Begin TextArea TextArea2
-      AcceptTabs      =   ""
-      Alignment       =   0
-      AutoDeactivate  =   True
-      AutomaticallyCheckSpelling=   True
-      BackColor       =   &hFFFFFF
-      Bold            =   ""
-      Border          =   True
-      DataField       =   ""
-      DataSource      =   ""
-      Enabled         =   True
-      Format          =   ""
-      Height          =   252
-      HelpTag         =   ""
-      HideSelection   =   True
-      Index           =   -2147483648
-      Italic          =   ""
-      Left            =   342
-      LimitText       =   0
-      LockBottom      =   ""
-      LockedInPosition=   False
-      LockLeft        =   True
-      LockRight       =   ""
-      LockTop         =   True
-      Mask            =   ""
-      Multiline       =   True
-      ReadOnly        =   ""
-      Scope           =   0
-      ScrollbarHorizontal=   ""
-      ScrollbarVertical=   True
-      Styled          =   True
-      TabIndex        =   1
-      TabPanelIndex   =   0
-      TabStop         =   True
-      Text            =   ""
-      TextColor       =   &h000000
-      TextFont        =   "System"
-      TextSize        =   0
-      TextUnit        =   0
-      Top             =   0
-      Underline       =   ""
-      UseFocusRing    =   True
-      Visible         =   True
-      Width           =   258
-   End
    Begin PushButton PushButton1
       AutoDeactivate  =   True
       Bold            =   ""
       ButtonStyle     =   0
       Cancel          =   ""
-      Caption         =   "Encode ->"
+      Caption         =   "Encode"
       Default         =   ""
       Enabled         =   True
       Height          =   22
@@ -185,33 +140,14 @@ End
 #tag Events PushButton1
 	#tag Event
 		Sub Action()
-		  Dim data As New MemoryBlock(1024)
-		  Dim r As New RLEStream(data)
-		  Dim m As New BinaryStream(TextArea1.Text)
-		  While Not m.EOF
-		    r.Write(m.Read(1))
-		  Wend
-		  r.Flush
-		  r.Close
-		  m.Close
-		  TextArea2.Text = data
+		  TextArea1.Text = RLEStream.Encode(TextArea1.Text)
 		End Sub
 	#tag EndEvent
 #tag EndEvents
 #tag Events PushButton2
 	#tag Event
 		Sub Action()
-		  Dim data As New MemoryBlock(1024)
-		  Dim r As New RLEStream(TextArea2.Text)
-		  Dim m As New BinaryStream(data)
-		  While Not r.EOF
-		    m.Write(r.Read(1))
-		    'r.Write(m.Read(1))
-		  Wend
-		  'm.Write(r.Read(1))
-		  r.Close
-		  m.Close
-		  TextArea1.Text = data
+		  TextArea1.Text = RLEStream.Decode(TextArea1.Text)
 		End Sub
 	#tag EndEvent
 #tag EndEvents
