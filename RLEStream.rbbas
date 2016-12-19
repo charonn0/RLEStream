@@ -171,9 +171,8 @@ Implements Readable,Writeable
 		    Return
 		  End If
 		  
-		  Dim textstream As New BinaryStream(text)
-		  
 		  If text.Len > 1 Then
+		    Dim textstream As New BinaryStream(text)
 		    While Not textstream.EOF
 		      Me.Write(textstream.Read(1))
 		    Wend
@@ -184,31 +183,27 @@ Implements Readable,Writeable
 		  #pragma NilObjectChecking Off
 		  #pragma BoundsChecking Off
 		  
-		  If RunChar = "" Then RunChar = textstream.Read(1)
-		  While Not textstream.EOF
-		    Dim char As String = textstream.Read(1)
-		    If StrComp(char, RunChar, 1) <> 0 Then
-		      If Runcount > 1 Then
-		        If IsNumeric(RunChar) Then
-		          IOStream.Write(Str(Runcount) + "\" + RunChar)
-		        Else
-		          IOStream.Write(Str(Runcount) + RunChar)
-		        End If
+		  If RunChar = "" Then RunChar = text
+		  If StrComp(text, RunChar, 1) <> 0 Then
+		    If Runcount > 1 Then
+		      If IsNumeric(RunChar) Then
+		        IOStream.Write(Str(Runcount) + "\" + RunChar)
 		      Else
-		        If IsNumeric(RunChar) Then
-		          IOStream.Write("\" + RunChar)
-		        Else
-		          IOStream.Write(RunChar)
-		        End If
+		        IOStream.Write(Str(Runcount) + RunChar)
 		      End If
-		      RunChar = char
-		      Runcount = 1
 		    Else
-		      Runcount = Runcount + 1
+		      If IsNumeric(RunChar) Then
+		        IOStream.Write("\" + RunChar)
+		      Else
+		        IOStream.Write(RunChar)
+		      End If
 		    End If
-		  Wend
+		    RunChar = text
+		    Runcount = 1
+		  Else
+		    Runcount = Runcount + 1
+		  End If
 		  NeedsFlush = True
-		  textstream.Close
 		End Sub
 	#tag EndMethod
 
