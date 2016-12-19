@@ -108,27 +108,32 @@ Implements Readable,Writeable
 		Function Read(Count As Integer, encoding As TextEncoding = Nil) As String
 		  // Part of the Readable interface.
 		  If RawIO Then Return IOStream.Read(Count, encoding)
-		  Dim ret As String
+		  Dim ret As New MemoryBlock(0)
+		  Dim retstream As New BinaryStream(ret)
 		  
 		  If Count > 1 Then
 		    #pragma BackgroundTasks Off
 		    For i As Integer = 1 To Count
-		      ret = ret + Me.Read(1, encoding)
+		      retstream.Write(Me.Read(1, encoding))
 		    Next
+		    retstream.Close
 		    Return ret
 		  End If
 		  
-		  If encoding <> Nil Then ret = DefineEncoding(ret, encoding)
+		  #pragma BackgroundTasks Off
+		  #pragma NilObjectChecking Off
+		  #pragma BoundsChecking Off
+		  
 		  Dim rcount As String
 		  While Not Me.EOF
 		    If Runcount >= Count Then
 		      For i As Integer = 1 To Count
-		        ret = ret + RunChar
+		        retstream.Write(RunChar)
 		        Runcount = Runcount - 1
 		      Next
 		      If Runcount = 0 Then RunChar = ""
 		    End If
-		    If ret.Len >= Count Then Return ret
+		    If retstream.Length >= Count Then Exit While
 		    Dim m As String = IOStream.Read(1)
 		    Select Case m
 		    Case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
@@ -142,12 +147,12 @@ Implements Readable,Writeable
 		      End If
 		      If rcount.Trim = "" Then rcount = "1"
 		      Runcount = Val(rcount)
-		      RunChar = m
+		      RunChar = DefineEncoding(m, encoding)
 		      rcount = ""
 		    End Select
 		  Wend
-		  
-		  Return DefineEncoding(ret, encoding)
+		  retstream.Close
+		  Return ret
 		End Function
 	#tag EndMethod
 
@@ -166,20 +171,22 @@ Implements Readable,Writeable
 		    Return
 		  End If
 		  
-		  If text.LenB > 1 Then
-		    #pragma BackgroundTasks Off
-		    For i As Integer = 1 To text.LenB
-		      Me.Write(MidB(text, i, 1))
-		    Next
+		  Dim textstream As New BinaryStream(text)
+		  
+		  If text.Len > 1 Then
+		    While Not textstream.EOF
+		      Me.Write(textstream.Read(1))
+		    Wend
+		    textstream.Close
 		    Return
 		  End If
+		  #pragma BackgroundTasks Off
+		  #pragma NilObjectChecking Off
+		  #pragma BoundsChecking Off
 		  
-		  Dim data As MemoryBlock = text
-		  Dim sz As Integer = Data.Size - 1
-		  If RunChar = "" Then RunChar = Data.StringValue(0, 1)
-		  'If IsNumeric(RunChar) Then RunChar = "\" + RunChar
-		  For i As Integer = 0 To sz
-		    Dim char As String = Data.StringValue(i, 1)
+		  If RunChar = "" Then RunChar = textstream.Read(1)
+		  While Not textstream.EOF
+		    Dim char As String = textstream.Read(1)
 		    If StrComp(char, RunChar, 1) <> 0 Then
 		      If Runcount > 1 Then
 		        If IsNumeric(RunChar) Then
@@ -199,8 +206,9 @@ Implements Readable,Writeable
 		    Else
 		      Runcount = Runcount + 1
 		    End If
-		  Next
+		  Wend
 		  NeedsFlush = True
+		  textstream.Close
 		End Sub
 	#tag EndMethod
 
