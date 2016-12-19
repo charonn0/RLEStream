@@ -52,7 +52,7 @@ Implements Readable,Writeable
 
 	#tag Method, Flags = &h0
 		 Shared Function Encode(InData As MemoryBlock) As MemoryBlock
-		  Dim out As New MemoryBlock(InData.Size)
+		  Dim out As New MemoryBlock(0)
 		  Dim outstream As New RLEStream(out)
 		  outstream.Write(InData)
 		  outstream.Close
@@ -140,10 +140,12 @@ Implements Readable,Writeable
 		      rcount = rcount + m
 		    Else
 		      If m = "\" Then 'escape
-		        If IOStream.Position < IOStream.Length Then
-		          Dim n As String = IOStream.Read(1)
-		          m = n
+		        If IOStream.EOF Then 
+		          Dim err As New UnsupportedFormatException
+		          err.Message = "Invalid RLE data"
+		          Raise err
 		        End If
+		        m = IOStream.Read(1)
 		      End If
 		      If rcount.Trim = "" Then rcount = "1"
 		      Runcount = Val(rcount)
@@ -184,15 +186,17 @@ Implements Readable,Writeable
 		  #pragma BoundsChecking Off
 		  
 		  If RunChar = "" Then RunChar = text
-		  If StrComp(text, RunChar, 1) <> 0 Then
+		  If StrComp(text, RunChar, 1) = 0 Then
+		    Runcount = Runcount + 1
+		  Else
 		    If Runcount > 1 Then
-		      If IsNumeric(RunChar) Then
+		      If IsNumeric(RunChar) Or RunChar = "\" Then
 		        IOStream.Write(Str(Runcount) + "\" + RunChar)
 		      Else
 		        IOStream.Write(Str(Runcount) + RunChar)
 		      End If
 		    Else
-		      If IsNumeric(RunChar) Then
+		      If IsNumeric(RunChar) Or RunChar = "\" Then
 		        IOStream.Write("\" + RunChar)
 		      Else
 		        IOStream.Write(RunChar)
@@ -200,8 +204,6 @@ Implements Readable,Writeable
 		    End If
 		    RunChar = text
 		    Runcount = 1
-		  Else
-		    Runcount = Runcount + 1
 		  End If
 		  NeedsFlush = True
 		End Sub
